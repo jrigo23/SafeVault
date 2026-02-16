@@ -1,0 +1,19 @@
+@model FinancialRecordViewModel
+@{
+    ViewData["Title"] = "View Financial Record";
+}
+
+<h1>Financial Record Details</h1>
+
+<dl>
+    <dt>Description:</dt>
+    <dd>@Html.DisplayFor(m => m.Description)</dd>
+
+    <dt>Sensitive Data (Decrypted):</dt>
+    <dd>@Html.DisplayFor(m => m.SensitiveData)</dd>
+
+    <dt>Amount:</dt>
+    <dd>$@Model.Amount.ToString("N2")</dd>
+</dl>
+
+<a href="/Financial" class="btn">Back to List</a>

@@ -1,0 +1,40 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<h1>Register</h1>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+<form asp-action="Register" method="post">
+    @Html.AntiForgeryToken()
+    
+    <div class="form-group">
+        <label asp-for="Username">Username:</label>
+        <input asp-for="Username" type="text" id="username" name="Username" />
+        <span asp-validation-for="Username" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Email">Email:</label>
+        <input asp-for="Email" type="email" id="email" name="Email" />
+        <span asp-validation-for="Email" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Password">Password:</label>
+        <input asp-for="Password" type="password" id="password" name="Password" />
+        <span asp-validation-for="Password" class="field-validation-error"></span>
+        <small>Must be at least 8 characters with uppercase, lowercase, number, and special character</small>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="ConfirmPassword">Confirm Password:</label>
+        <input asp-for="ConfirmPassword" type="password" id="confirmPassword" name="ConfirmPassword" />
+        <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+    </div>
+
+    <button type="submit">Register</button>
+    <a href="/User/Login">Already have an account? Login</a>
+</form>

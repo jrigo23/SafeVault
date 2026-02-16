@@ -1,0 +1,61 @@
+@model IEnumerable<FinancialRecord>
+@{
+    ViewData["Title"] = "Financial Records";
+}
+
+<h1>Financial Records</h1>
+
+<div>
+    <a href="/Financial/Create" class="btn">Add New Record</a>
+</div>
+
+<form asp-action="Search" method="get" style="margin-top: 1rem;">
+    @Html.AntiForgeryToken()
+    <div class="form-group">
+        <label for="SearchTerm">Search:</label>
+        <input type="text" name="SearchTerm" id="SearchTerm" placeholder="Search by description..." />
+        <button type="submit">Search</button>
+    </div>
+</form>
+
+@if (ViewData["SearchTerm"] != null)
+{
+    <p>Search results for: <strong>@ViewData["SearchTerm"]</strong></p>
+}
+
+<table>
+    <thead>
+        <tr>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model?.Any() == true)
+        {
+            @foreach (var record in Model)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(m => record.Description)</td>
+                    <td>$@record.Amount.ToString("N2")</td>
+                    <td>@record.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        <a href="/Financial/View/@record.RecordID" class="btn">View</a>
+                        <form asp-action="Delete" asp-route-id="@record.RecordID" method="post" style="display: inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this record?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="4">No records found.</td>
+            </tr>
+        }
+    </tbody>
+</table>
