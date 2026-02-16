@@ -507,7 +507,7 @@ public class TestAttackScenarios
             "user@example.com",
             "Product ABC123",
             "Monthly payment for utilities",
-            "Valid description 2024"
+            "Valid description with numbers 123"
         };
 
         var sqlValidator = new SqlInjectionSafeAttribute();
