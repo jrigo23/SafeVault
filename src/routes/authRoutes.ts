@@ -1,0 +1,46 @@
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { register, login, getProfile } from '../controllers/authController';
+import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validation';
+import { authLimiter } from '../middleware/rateLimiter';
+
+const router = Router();
+
+// Validation rules
+const registerValidation = [
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3 and 50 characters')
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Username can only contain letters, numbers, underscores, and hyphens'),
+  body('email')
+    .trim()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+];
+
+const loginValidation = [
+  body('email')
+    .trim()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+];
+
+// Routes
+router.post('/register', authLimiter, validate(registerValidation), register);
+router.post('/login', authLimiter, validate(loginValidation), login);
+router.get('/profile', authenticate, getProfile);
+
+export default router;
