@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using SafeVault.Web.Authorization;
 using SafeVault.Web.Data;
+using SafeVault.Web.Models;
 using SafeVault.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,11 +17,67 @@ builder.Services.AddDbContext<SafeVaultDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") 
         ?? "Data Source=safevault.db"));
 
+// Add ASP.NET Core Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    // Password settings
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+    
+    // Lockout settings (matching existing: 5 attempts, 15 minutes)
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+    
+    // User settings
+    options.User.RequireUniqueEmail = true;
+    options.SignIn.RequireConfirmedEmail = true;
+})
+.AddEntityFrameworkStores<SafeVaultDbContext>()
+.AddDefaultTokenProviders();
+
+// Configure cookie authentication
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+    options.SlidingExpiration = true;
+    options.LoginPath = "/User/Login";
+    options.LogoutPath = "/User/Logout";
+    options.AccessDeniedPath = "/User/AccessDenied";
+});
+
+// Add authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ManageFinancials", policy => 
+        policy.RequireClaim("CanManageFinancials", "true"));
+    
+    options.AddPolicy("ViewReports", policy => 
+        policy.RequireClaim("CanViewReports", "true"));
+    
+    options.AddPolicy("ManageUsers", policy => 
+        policy.RequireClaim("CanManageUsers", "true"));
+    
+    options.AddPolicy("FinancialRecordOwner", policy =>
+        policy.Requirements.Add(new FinancialRecordOwnerRequirement()));
+});
+
+// Register custom authorization handlers
+builder.Services.AddSingleton<IAuthorizationHandler, FinancialRecordAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, FinancialRecordOwnerAuthorizationHandler>();
+
 // Register services
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IEmailSender, EmailSender>();
 
-// Configure session
+// Configure session (keeping for backward compatibility during migration)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -37,11 +97,23 @@ builder.Services.AddAntiforgery(options =>
 
 var app = builder.Build();
 
-// Create database and apply migrations
+// Create database and apply migrations, seed roles and admin
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<SafeVaultDbContext>();
-    db.Database.EnsureCreated();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<SafeVaultDbContext>();
+        context.Database.EnsureCreated();
+        
+        // Seed roles and admin user
+        await DbInitializer.InitializeAsync(services);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while creating the database or seeding data");
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -82,9 +154,11 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseSession();
-
+// Add authentication and authorization middleware (required for Identity)
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseSession();
 
 app.MapControllerRoute(
     name: "default",

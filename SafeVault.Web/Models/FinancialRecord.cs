@@ -9,7 +9,7 @@ public class FinancialRecord
     public int RecordID { get; set; }
 
     [Required]
-    public int UserID { get; set; }
+    public string UserID { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Description is required")]
     [StringLength(200, ErrorMessage = "Description cannot exceed 200 characters")]
@@ -29,5 +29,5 @@ public class FinancialRecord
 
     // Navigation property
     [ForeignKey("UserID")]
-    public virtual User? User { get; set; }
+    public virtual ApplicationUser? User { get; set; }
 }

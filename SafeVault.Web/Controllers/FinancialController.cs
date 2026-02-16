@@ -1,44 +1,56 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SafeVault.Web.Data;
 using SafeVault.Web.Models;
 using SafeVault.Web.Services;
+using System.Security.Claims;
 
 namespace SafeVault.Web.Controllers;
 
+[Authorize] // Require authentication for all actions
 public class FinancialController : Controller
 {
     private readonly SafeVaultDbContext _context;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<FinancialController> _logger;
+    private readonly IAuthorizationService _authorizationService;
 
     public FinancialController(
         SafeVaultDbContext context,
         IEncryptionService encryptionService,
-        ILogger<FinancialController> logger)
+        ILogger<FinancialController> logger,
+        IAuthorizationService authorizationService)
     {
         _context = context;
         _encryptionService = encryptionService;
         _logger = logger;
+        _authorizationService = authorizationService;
     }
 
-    private int? GetCurrentUserId()
+    private string? GetCurrentUserId()
     {
-        return HttpContext.Session.GetInt32("UserID");
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
     [HttpGet]
     public async Task<IActionResult> Index()
     {
         var userId = GetCurrentUserId();
-        if (!userId.HasValue)
+        if (string.IsNullOrEmpty(userId))
         {
             return RedirectToAction("Login", "User");
         }
 
-        // Use parameterized query through EF Core
-        var records = await _context.FinancialRecords
-            .Where(r => r.UserID == userId.Value)
+        // Admins can see all records, users see only their own
+        IQueryable<FinancialRecord> query = _context.FinancialRecords;
+        
+        if (!User.IsInRole("Admin"))
+        {
+            query = query.Where(r => r.UserID == userId);
+        }
+
+        var records = await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
@@ -46,23 +58,19 @@ public class FinancialController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "ManageFinancials")]
     public IActionResult Create()
     {
-        var userId = GetCurrentUserId();
-        if (!userId.HasValue)
-        {
-            return RedirectToAction("Login", "User");
-        }
-
         return View();
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ManageFinancials")]
     public async Task<IActionResult> Create(FinancialRecordViewModel model)
     {
         var userId = GetCurrentUserId();
-        if (!userId.HasValue)
+        if (string.IsNullOrEmpty(userId))
         {
             return RedirectToAction("Login", "User");
         }
@@ -79,7 +87,7 @@ public class FinancialController : Controller
 
             var record = new FinancialRecord
             {
-                UserID = userId.Value,
+                UserID = userId,
                 Description = model.Description,
                 EncryptedData = encryptedData,
                 Amount = model.Amount,
@@ -90,7 +98,7 @@ public class FinancialController : Controller
             _context.FinancialRecords.Add(record);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Financial record created for user {UserId}", userId.Value);
+            _logger.LogInformation("Financial record created for user {UserId}", userId);
 
             TempData["SuccessMessage"] = "Financial record created successfully";
             return RedirectToAction("Index");
@@ -107,18 +115,27 @@ public class FinancialController : Controller
     public async Task<IActionResult> View(int id)
     {
         var userId = GetCurrentUserId();
-        if (!userId.HasValue)
+        if (string.IsNullOrEmpty(userId))
         {
             return RedirectToAction("Login", "User");
         }
 
         // Use parameterized query through EF Core to prevent SQL injection
         var record = await _context.FinancialRecords
-            .FirstOrDefaultAsync(r => r.RecordID == id && r.UserID == userId.Value);
+            .FirstOrDefaultAsync(r => r.RecordID == id);
 
         if (record == null)
         {
             return NotFound();
+        }
+
+        // Check authorization using resource-based authorization
+        var authResult = await _authorizationService.AuthorizeAsync(
+            User, record, Web.Authorization.Operations.Read);
+        
+        if (!authResult.Succeeded)
+        {
+            return Forbid();
         }
 
         // Decrypt sensitive data for viewing
@@ -137,7 +154,7 @@ public class FinancialController : Controller
     public async Task<IActionResult> Search(SearchViewModel model)
     {
         var userId = GetCurrentUserId();
-        if (!userId.HasValue)
+        if (string.IsNullOrEmpty(userId))
         {
             return RedirectToAction("Login", "User");
         }
@@ -148,9 +165,16 @@ public class FinancialController : Controller
         }
 
         // Use parameterized query through EF Core - SQL injection safe
-        var records = await _context.FinancialRecords
-            .Where(r => r.UserID == userId.Value && 
-                       r.Description.Contains(model.SearchTerm))
+        IQueryable<FinancialRecord> query = _context.FinancialRecords
+            .Where(r => r.Description.Contains(model.SearchTerm));
+        
+        // Filter by user unless Admin
+        if (!User.IsInRole("Admin"))
+        {
+            query = query.Where(r => r.UserID == userId);
+        }
+
+        var records = await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
@@ -160,10 +184,11 @@ public class FinancialController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "ManageFinancials")]
     public async Task<IActionResult> Delete(int id)
     {
         var userId = GetCurrentUserId();
-        if (!userId.HasValue)
+        if (string.IsNullOrEmpty(userId))
         {
             return RedirectToAction("Login", "User");
         }
@@ -172,17 +197,26 @@ public class FinancialController : Controller
         {
             // Use parameterized query through EF Core
             var record = await _context.FinancialRecords
-                .FirstOrDefaultAsync(r => r.RecordID == id && r.UserID == userId.Value);
+                .FirstOrDefaultAsync(r => r.RecordID == id);
 
             if (record == null)
             {
                 return NotFound();
             }
 
+            // Check authorization using resource-based authorization
+            var authResult = await _authorizationService.AuthorizeAsync(
+                User, record, Web.Authorization.Operations.Delete);
+            
+            if (!authResult.Succeeded)
+            {
+                return Forbid();
+            }
+
             _context.FinancialRecords.Remove(record);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Financial record {RecordId} deleted by user {UserId}", id, userId.Value);
+            _logger.LogInformation("Financial record {RecordId} deleted by user {UserId}", id, userId);
 
             TempData["SuccessMessage"] = "Record deleted successfully";
             return RedirectToAction("Index");
