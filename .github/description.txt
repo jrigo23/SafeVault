@@ -1,0 +1,1 @@
+🔐 Secure ASP.NET Core 8.0 web application for managing sensitive financial data with enterprise-grade security. Features AES-256 encryption, role-based authorization, 2FA, comprehensive input validation, and 41 passing security tests. OWASP Top 10 compliant.
