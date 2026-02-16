@@ -27,8 +27,10 @@ A secure ASP.NET Core web application for managing sensitive data including user
 
 ✅ **Data Encryption**
 - AES-256 encryption for financial records
+- Random IV generation for each encryption operation
 - Encrypted sensitive data at rest
-- Secure key management
+- Secure key management (no hardcoded keys)
+- IV prepended to ciphertext for secure decryption
 
 ✅ **Security Headers**
 - Content-Security-Policy
@@ -195,22 +197,40 @@ dotnet test --filter "ClassName=TestInputValidation"
 
 ### Encryption Keys
 
-⚠️ **Important**: Change the encryption keys in production!
+⚠️ **Important Security Notice**:
 
-Update `appsettings.json`:
+The application requires an encryption key to be configured. The key **must** be at least 32 characters long.
 
-```json
-"Encryption": {
-  "Key": "Your32ByteProductionKeyHere!!",
-  "IV": "Your16ByteIVHere"
-}
+**For Development:**
+The key is pre-configured in `appsettings.Development.json` for local development only.
+
+**For Production:**
+1. **Remove** the example key from development settings
+2. Store encryption keys in a secure location:
+   - Azure Key Vault
+   - AWS Secrets Manager
+   - Environment variables
+   - Secure configuration provider
+   - HashiCorp Vault
+
+**Setting via Environment Variable:**
+```bash
+# Linux/macOS
+export Encryption__Key="Your32+CharacterProductionKeyHere"
+
+# Windows
+set Encryption__Key=Your32+CharacterProductionKeyHere
 ```
 
-In production, store these in:
-- Azure Key Vault
-- AWS Secrets Manager
-- Environment variables
-- Secure configuration provider
+**Important:** The application will fail to start if no valid encryption key is configured - this is intentional for security.
+
+### Encryption Implementation
+
+This application uses AES-256 encryption with the following security features:
+- **Random IV Generation**: Each encryption operation generates a unique initialization vector (IV)
+- **IV Storage**: The IV is prepended to the ciphertext for decryption
+- **No Static IVs**: Ensures no patterns can be detected in encrypted data
+- **Secure Key Management**: Keys are never hardcoded in production code
 
 ### Security Headers
 
