@@ -1,8 +1,32 @@
 # SafeVault
 
-A secure ASP.NET Core web application for managing sensitive data including user credentials and financial records.
+A secure ASP.NET Core web application for managing sensitive data including user credentials and financial records with comprehensive authentication and authorization.
 
 ## Security Features
+
+### Authentication & Authorization
+✅ **ASP.NET Core Identity Integration**
+- Modern, secure authentication framework
+- Email-based user verification
+- Password reset functionality
+- Two-factor authentication (2FA) support
+- Account lockout after 5 failed attempts (15-minute lockout)
+
+✅ **Role-Based Authorization (RBAC)**
+- Admin role - Full system access and user management
+- User role - Manage own financial records
+- Guest role - Read-only access
+- Fine-grained permission control
+
+✅ **Claims-Based Authorization**
+- `CanManageFinancials` - Permission to create/update/delete financial records
+- `CanViewReports` - Permission to view financial reports
+- `CanManageUsers` - Permission to manage other users (admin only)
+
+✅ **Resource-Based Authorization**
+- Users can only access their own financial records
+- Admins have access to all records
+- Custom authorization handlers for financial data
 
 ✅ **Input Validation**
 - Custom validation attributes for SQL injection prevention
@@ -21,9 +45,11 @@ A secure ASP.NET Core web application for managing sensitive data including user
 - Input sanitization validators
 
 ✅ **Password Security**
-- BCrypt password hashing (work factor: 12)
-- Never stores passwords in plain text
+- ASP.NET Core Identity password hashing (PBKDF2 with HMAC-SHA256)
+- BCrypt password hashing also available (work factor: 12)
+- Strong password requirements (8+ chars, uppercase, lowercase, number, special char)
 - Account lockout after 5 failed login attempts (15-minute lockout)
+- Password history and complexity enforcement
 
 ✅ **Data Encryption**
 - AES-256 encryption for financial records
@@ -49,10 +75,11 @@ A secure ASP.NET Core web application for managing sensitive data including user
 ## Technical Stack
 
 - **Framework**: ASP.NET Core 8.0
+- **Authentication**: ASP.NET Core Identity 8.0
 - **ORM**: Entity Framework Core 8.0
 - **Database**: SQLite (easily switchable to SQL Server)
 - **Testing**: NUnit 3
-- **Password Hashing**: BCrypt.Net-Next
+- **Password Hashing**: ASP.NET Core Identity (PBKDF2), BCrypt.Net-Next
 - **Encryption**: AES-256 (System.Security.Cryptography)
 
 ## Project Structure
@@ -61,27 +88,39 @@ A secure ASP.NET Core web application for managing sensitive data including user
 SafeVault/
 ├── SafeVault.Web/              # Main web application
 │   ├── Controllers/            # MVC controllers
-│   │   ├── UserController.cs   # User registration/login
+│   │   ├── UserController.cs   # User registration/login/2FA
 │   │   ├── FinancialController.cs # Financial records CRUD
+│   │   ├── AdminController.cs  # User management (Admin only)
 │   │   └── HomeController.cs
 │   ├── Models/                 # Data models
-│   │   ├── User.cs
-│   │   ├── UserCredential.cs
+│   │   ├── ApplicationUser.cs  # Identity user model
+│   │   ├── User.cs            # Legacy user model
+│   │   ├── UserCredential.cs  # Legacy credentials
 │   │   ├── FinancialRecord.cs
-│   │   └── ViewModels.cs
+│   │   ├── ViewModels.cs
+│   │   └── AccountViewModels.cs # Account management models
 │   ├── Data/                   # Database context
-│   │   └── SafeVaultDbContext.cs
+│   │   ├── SafeVaultDbContext.cs
+│   │   └── DbInitializer.cs   # Role and admin seeding
 │   ├── Services/               # Business logic
 │   │   ├── EncryptionService.cs
-│   │   └── PasswordHasher.cs
+│   │   ├── PasswordHasher.cs
+│   │   └── EmailSender.cs     # Email notifications
+│   ├── Authorization/          # Authorization policies
+│   │   ├── Requirements.cs
+│   │   └── FinancialRecordAuthorizationHandler.cs
 │   ├── Validators/             # Custom validators
 │   │   └── SecurityValidators.cs
 │   └── Views/                  # Razor views
+│       ├── User/              # Login, Register, 2FA
+│       ├── Financial/         # Financial records
+│       └── Admin/             # Admin panel
 └── SafeVault.Tests/            # NUnit test project
     ├── TestInputValidation.cs
     ├── TestPasswordHashing.cs
     ├── TestEncryption.cs
-    └── TestDatabaseSecurity.cs
+    ├── TestDatabaseSecurity.cs
+    └── TestAuthorization.cs   # Authorization tests
 ```
 
 ## Getting Started
@@ -121,6 +160,15 @@ dotnet run
 
 The application uses SQLite by default with the database file created at `SafeVault.Web/safevault.db`.
 
+#### Default Admin Account
+
+On first run, a default admin account is created:
+- **Username**: admin
+- **Email**: admin@safevault.com  
+- **Password**: Admin@123456
+
+⚠️ **IMPORTANT**: Change this password immediately after first login in production environments!
+
 To switch to SQL Server, update the connection string in `appsettings.json`:
 
 ```json
@@ -138,10 +186,19 @@ builder.Services.AddDbContext<SafeVaultDbContext>(options =>
 
 ## Features
 
-### User Management
-- **Registration**: Secure user registration with password validation
-- **Login**: Authentication with account lockout protection
-- **Session Management**: Secure session handling
+### Authentication & User Management
+- **Registration**: Secure user registration with email confirmation required
+- **Email Confirmation**: Token-based email verification before first login
+- **Login**: Multi-factor authentication with account lockout protection
+- **Password Reset**: Secure password reset workflow via email
+- **Two-Factor Authentication (2FA)**: Optional email-based 2FA for enhanced security
+- **Session Management**: Secure cookie-based authentication with sliding expiration
+
+### Authorization & Access Control
+- **Role-Based Access**: Admin, User, and Guest roles with different permissions
+- **Claims-Based Policies**: Fine-grained permissions for specific operations
+- **Resource-Based Authorization**: Users can only access their own data (except Admins)
+- **Admin Panel**: User management, role assignment, account locking/unlocking
 
 ### Financial Records
 - **Create**: Add new financial records with encrypted sensitive data
@@ -178,7 +235,15 @@ The application includes comprehensive security tests:
 - User data isolation
 - Cascade delete behavior
 
-All 32 tests pass successfully! ✅
+### Authorization Tests (9 tests)
+- Role creation and assignment
+- Claims-based authorization
+- Multiple role management
+- Password policy enforcement
+- Email confirmation workflow
+- Two-factor authentication
+
+All 41 tests pass successfully! ✅
 
 ## Running Tests
 
