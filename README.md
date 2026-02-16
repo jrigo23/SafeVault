@@ -208,42 +208,70 @@ builder.Services.AddDbContext<SafeVaultDbContext>(options =>
 
 ## Security Testing
 
-The application includes comprehensive security tests:
+The application includes comprehensive security tests covering all critical security aspects:
 
 ### Input Validation Tests (8 tests)
-- SQL injection detection
-- XSS attack detection
-- Malicious input detection
-- Bypass attempt detection
+Located in `SafeVault.Tests/TestInputValidation.cs`:
+
+1. **TestForSQLInjection_DetectsSQLKeywords** - Validates detection of SQL injection attempts including `' or '1'='1`, `DROP TABLE`, `UNION SELECT`, and SQL comments
+2. **TestForSQLInjection_AllowsValidInput** - Ensures legitimate input like usernames, emails, and product names are accepted
+3. **TestForXSS_DetectsScriptTags** - Detects XSS attacks including `<script>` tags, `javascript:` protocol, event handlers, and data URIs
+4. **TestForXSS_AllowsValidInput** - Allows safe text input without HTML/JavaScript
+5. **TestNoMaliciousInput_DetectsDangerousCharacters** - Identifies dangerous characters like `<>`, quotes, and SQL comment sequences
+6. **TestNoMaliciousInput_AllowsCleanInput** - Permits clean alphanumeric input with standard punctuation
+7. **TestSQLInjection_CommonBypassAttempts** - Tests against advanced SQL injection bypass techniques including `UNION ALL SELECT` and comment-based attacks
+8. **TestXSS_EventHandlerInjection** - Validates detection of XSS via event handlers (`onerror`, `onload`, `onclick`, `onmouseover`, `onfocus`)
 
 ### Password Hashing Tests (8 tests)
-- Hash generation
-- Password verification
-- Special character handling
-- Long password support
+Located in `SafeVault.Tests/TestPasswordHashing.cs`:
+
+1. **HashPassword_CreatesNonEmptyHash** - Verifies BCrypt hash generation produces non-empty strings with proper length
+2. **HashPassword_CreatesDifferentHashesForSamePassword** - Confirms salting creates unique hashes for identical passwords
+3. **VerifyPassword_ReturnsTrueForCorrectPassword** - Validates correct password verification
+4. **VerifyPassword_ReturnsFalseForIncorrectPassword** - Ensures incorrect passwords are rejected
+5. **VerifyPassword_ReturnsFalseForEmptyPassword** - Rejects empty password attempts
+6. **HashPassword_ThrowsExceptionForEmptyPassword** - Prevents hashing of empty passwords
+7. **HashPassword_WorksWithSpecialCharacters** - Handles special characters in passwords (`!@#$%^&*()`)
+8. **HashPassword_WorksWithLongPasswords** - Supports long password strings (50+ characters)
 
 ### Encryption Tests (9 tests)
-- Data encryption/decryption
-- Empty string handling
-- Special character support
-- Long string support
+Located in `SafeVault.Tests/TestEncryption.cs`:
+
+1. **Encrypt_CreatesNonEmptyEncryptedString** - Verifies AES-256 encryption produces non-empty ciphertext different from plaintext
+2. **Decrypt_ReturnsOriginalPlainText** - Validates encryption/decryption round-trip accuracy
+3. **Encrypt_HandlesEmptyString** - Properly handles empty string encryption/decryption
+4. **Encrypt_WorksWithSpecialCharacters** - Encrypts/decrypts special characters correctly
+5. **Encrypt_WorksWithNumbers** - Handles numeric strings
+6. **Encrypt_WorksWithLongStrings** - Successfully encrypts strings up to 1000+ characters
+7. **Encrypt_ProducesDifferentOutputForDifferentInput** - Different plaintext produces different ciphertext
+8. **Encrypt_ProducesDifferentOutputForSameInput** - Random IV ensures same plaintext produces different ciphertext each time
+9. **Encrypt_DataIsNotStoredInPlainText** - Confirms encrypted data doesn't contain plaintext fragments
 
 ### Database Security Tests (7 tests)
-- SQL injection prevention
-- Password storage security
-- Data encryption at rest
-- User data isolation
-- Cascade delete behavior
+Located in `SafeVault.Tests/TestDatabaseSecurity.cs`:
+
+1. **SQLInjection_PreventedByParameterizedQueries** - Verifies EF Core's parameterized queries block SQL injection attempts
+2. **SQLInjection_DropTableAttemptFails** - Confirms `DROP TABLE` injection attempts fail and tables remain intact
+3. **PasswordsAreHashedNotPlainText** - Validates passwords are stored as BCrypt hashes, not plaintext
+4. **FinancialData_IsEncryptedAtRest** - Ensures sensitive financial data is encrypted in the database
+5. **UnionSelectInjectionAttempt_IsBlocked** - Blocks `UNION SELECT` injection attempts in search queries
+6. **UserDataIsolation_PreventsUnauthorizedAccess** - Enforces user data isolation (users can't access other users' records)
+7. **CascadeDelete_RemovesRelatedData** - Verifies cascade deletion removes related credentials when user is deleted
 
 ### Authorization Tests (9 tests)
-- Role creation and assignment
-- Claims-based authorization
-- Multiple role management
-- Password policy enforcement
-- Email confirmation workflow
-- Two-factor authentication
+Located in `SafeVault.Tests/TestAuthorization.cs`:
 
-All 41 tests pass successfully! ✅
+1. **RoleCreation_SuccessfullyCreatesRole** - Tests ASP.NET Core Identity role creation
+2. **UserRoleAssignment_SuccessfullyAssignsRole** - Validates user-to-role assignment functionality
+3. **UserClaims_SuccessfullyAddsClaims** - Confirms claims-based authorization (`CanManageFinancials`, `CanViewReports`)
+4. **MultipleRoles_UserCanHaveMultipleRoles** - Verifies users can be assigned multiple roles simultaneously
+5. **RoleRemoval_SuccessfullyRemovesRole** - Tests role removal from users
+6. **PasswordValidation_EnforcesPasswordPolicy** - Ensures weak passwords are rejected (short, no complexity)
+7. **PasswordValidation_AcceptsStrongPassword** - Accepts passwords meeting complexity requirements
+8. **EmailConfirmation_RequiredForLogin** - Validates email confirmation workflow
+9. **TwoFactorAuthentication_CanBeEnabled** - Tests 2FA enablement for users
+
+**Total: 41 tests - All passing! ✅**
 
 ## Running Tests
 
