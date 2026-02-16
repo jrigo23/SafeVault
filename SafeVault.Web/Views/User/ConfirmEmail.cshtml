@@ -1,0 +1,36 @@
+@model SafeVault.Web.Models.ConfirmEmailViewModel
+
+@{
+    ViewData["Title"] = "Email Confirmation";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center">Email Confirmation</h2>
+                    
+                    @if (Model.IsConfirmed)
+                    {
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill"></i> Your email has been confirmed successfully!
+                        </div>
+                        <p class="text-center">
+                            You can now <a asp-controller="User" asp-action="Login">login to your account</a>.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Email confirmation failed.
+                        </div>
+                        <p>
+                            The confirmation link may be invalid or expired. Please try registering again or contact support.
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
