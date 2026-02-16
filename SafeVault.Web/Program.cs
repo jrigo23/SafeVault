@@ -55,9 +55,9 @@ if (!app.Environment.IsDevelopment())
 // Security headers middleware
 app.Use(async (context, next) =>
 {
-    // Content Security Policy
+    // Content Security Policy - strict policy without unsafe-inline
     context.Response.Headers.Append("Content-Security-Policy", 
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;");
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';");
     
     // X-Frame-Options
     context.Response.Headers.Append("X-Frame-Options", "DENY");

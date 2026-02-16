@@ -15,8 +15,7 @@ public class TestEncryption
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                { "Encryption:Key", "ThisIsA32ByteKeyForAES256Encr!" },
-                { "Encryption:IV", "ThisIsA16ByteIV!" }
+                { "Encryption:Key", "ThisIsATestKeyForAES256Encryption!" }
             })
             .Build();
 
@@ -125,7 +124,7 @@ public class TestEncryption
     }
 
     [Test]
-    public void Encrypt_ProducesSameOutputForSameInput()
+    public void Encrypt_ProducesDifferentOutputForSameInput()
     {
         // Arrange
         var plainText = "Consistent data";
@@ -134,8 +133,14 @@ public class TestEncryption
         var encrypted1 = _encryptionService.Encrypt(plainText);
         var encrypted2 = _encryptionService.Encrypt(plainText);
 
-        // Assert - With same key and IV, output should be identical
-        Assert.That(encrypted1, Is.EqualTo(encrypted2));
+        // Assert - With random IV, output should be different each time
+        Assert.That(encrypted1, Is.Not.EqualTo(encrypted2));
+        
+        // But both should decrypt to the same value
+        var decrypted1 = _encryptionService.Decrypt(encrypted1);
+        var decrypted2 = _encryptionService.Decrypt(encrypted2);
+        Assert.That(decrypted1, Is.EqualTo(plainText));
+        Assert.That(decrypted2, Is.EqualTo(plainText));
     }
 
     [Test]

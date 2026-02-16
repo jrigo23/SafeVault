@@ -10,7 +10,6 @@
 </div>
 
 <form asp-action="Search" method="get" style="margin-top: 1rem;">
-    @Html.AntiForgeryToken()
     <div class="form-group">
         <label for="SearchTerm">Search:</label>
         <input type="text" name="SearchTerm" id="SearchTerm" placeholder="Search by description..." />

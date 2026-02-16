@@ -12,16 +12,18 @@ public interface IEncryptionService
 public class EncryptionService : IEncryptionService
 {
     private readonly byte[] _key;
-    private readonly byte[] _iv;
 
     public EncryptionService(IConfiguration configuration)
     {
-        // In production, store these securely in Key Vault or similar
-        var keyString = configuration["Encryption:Key"] ?? "ThisIsA32ByteKeyForAES256Encr!";
-        var ivString = configuration["Encryption:IV"] ?? "ThisIsA16ByteIV!";
+        // Require encryption key from environment variable or secure configuration
+        var keyString = configuration["Encryption:Key"]
+            ?? throw new InvalidOperationException(
+                "Encryption key not configured. Set 'Encryption:Key' in environment variables or secure configuration.");
+        
+        if (keyString.Length < 32)
+            throw new InvalidOperationException("Encryption key must be at least 32 characters long.");
         
         _key = Encoding.UTF8.GetBytes(keyString.PadRight(32).Substring(0, 32));
-        _iv = Encoding.UTF8.GetBytes(ivString.PadRight(16).Substring(0, 16));
     }
 
     public string Encrypt(string plainText)
@@ -31,12 +33,16 @@ public class EncryptionService : IEncryptionService
 
         using var aes = Aes.Create();
         aes.Key = _key;
-        aes.IV = _iv;
+        aes.GenerateIV(); // Generate a random IV for each encryption
 
         var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
 
         using var msEncrypt = new MemoryStream();
-        using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+        
+        // Prepend IV to the encrypted data
+        msEncrypt.Write(aes.IV, 0, aes.IV.Length);
+        
+        using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
         using (var swEncrypt = new StreamWriter(csEncrypt))
         {
             swEncrypt.Write(plainText);
@@ -50,13 +56,23 @@ public class EncryptionService : IEncryptionService
         if (string.IsNullOrEmpty(cipherText))
             return string.Empty;
 
+        var fullCipher = Convert.FromBase64String(cipherText);
+
         using var aes = Aes.Create();
         aes.Key = _key;
-        aes.IV = _iv;
+
+        // Extract IV from the beginning of the cipher text
+        var iv = new byte[aes.IV.Length];
+        var cipher = new byte[fullCipher.Length - iv.Length];
+
+        Array.Copy(fullCipher, iv, iv.Length);
+        Array.Copy(fullCipher, iv.Length, cipher, 0, cipher.Length);
+
+        aes.IV = iv;
 
         var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
 
-        using var msDecrypt = new MemoryStream(Convert.FromBase64String(cipherText));
+        using var msDecrypt = new MemoryStream(cipher);
         using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
         using var srDecrypt = new StreamReader(csDecrypt);
 

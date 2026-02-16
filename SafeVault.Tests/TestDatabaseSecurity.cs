@@ -27,8 +27,7 @@ public class TestDatabaseSecurity
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                { "Encryption:Key", "ThisIsA32ByteKeyForAES256Encr!" },
-                { "Encryption:IV", "ThisIsA16ByteIV!" }
+                { "Encryption:Key", "ThisIsATestKeyForAES256Encryption!" }
             })
             .Build();
 
