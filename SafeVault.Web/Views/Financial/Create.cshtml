@@ -1,0 +1,34 @@
+@model FinancialRecordViewModel
+@{
+    ViewData["Title"] = "Create Financial Record";
+}
+
+<h1>Create Financial Record</h1>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    
+    <div class="form-group">
+        <label asp-for="Description">Description:</label>
+        <input asp-for="Description" type="text" />
+        <span asp-validation-for="Description" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="SensitiveData">Sensitive Data (e.g., Account Number):</label>
+        <input asp-for="SensitiveData" type="text" />
+        <span asp-validation-for="SensitiveData" class="field-validation-error"></span>
+        <small>This data will be encrypted before storage</small>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Amount">Amount:</label>
+        <input asp-for="Amount" type="number" step="0.01" />
+        <span asp-validation-for="Amount" class="field-validation-error"></span>
+    </div>
+
+    <button type="submit">Create Record</button>
+    <a href="/Financial">Cancel</a>
+</form>

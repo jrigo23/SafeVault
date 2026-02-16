@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Home";
+}
+
+<h1>Welcome to SafeVault</h1>
+<p>A secure web application for managing sensitive data including user credentials and financial records.</p>
+
+<h2>Security Features</h2>
+<ul>
+    <li>Input validation with custom validators</li>
+    <li>SQL injection prevention using Entity Framework Core</li>
+    <li>XSS prevention with output encoding and CSP headers</li>
+    <li>Password hashing using BCrypt</li>
+    <li>Data encryption for financial records using AES-256</li>
+    <li>HTTPS enforcement</li>
+    <li>Anti-forgery tokens on all forms</li>
+    <li>Account lockout after failed login attempts</li>
+    <li>Security headers (CSP, X-Frame-Options, etc.)</li>
+</ul>
+
+@if (Context.Session.GetString("Username") == null)
+{
+    <p>
+        <a href="/User/Register" class="btn">Get Started - Register</a>
+        <a href="/User/Login" class="btn">Login</a>
+    </p>
+}
+else
+{
+    <p>
+        <a href="/Financial" class="btn">Manage Financial Records</a>
+    </p>
+}
